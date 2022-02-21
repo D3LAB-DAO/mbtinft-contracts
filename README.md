@@ -5,6 +5,6 @@ MBTINFT contracts
 
 ERC20
 
-# Ching-Gu
+# Ching-Gu (Friend)
 
 ERC721
