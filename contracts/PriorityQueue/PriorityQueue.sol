@@ -3,20 +3,17 @@
 pragma solidity ^0.8.0;
 
 import "./Heap.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * Implementation for Solidity v0.8.
  *
+ * @notice This is a simple contract that uses the heap library.
+ *
  * References:
  *
  * - https://github.com/zmitton/eth-heap
- *
- * TODO:
- *
- * - Ownable.
  */
-contract PriorityQueue is Ownable {
+contract PriorityQueue {
     using Heap for Heap.Data;
     Heap.Data public data;
 
