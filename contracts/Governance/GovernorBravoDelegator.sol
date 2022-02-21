@@ -7,7 +7,7 @@ import "./GovernorBravoInterfaces.sol";
 /**
  * Implementation for Solidity v0.8.
  * 
- * References
+ * References:
  *
  * - https://github.com/compound-finance/compound-protocol/blob/master/contracts/Governance/GovernorBravoDelegator.sol
  */

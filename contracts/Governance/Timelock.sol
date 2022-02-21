@@ -3,9 +3,9 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title Timelock
+ * Implementation for Solidity v0.8.
  * 
- * References
+ * References:
  *
  * - https://github.com/compound-finance/compound-protocol/blob/master/contracts/Timelock.sol
  */

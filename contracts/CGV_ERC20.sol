@@ -9,7 +9,9 @@ contract CGV is ERC20VotesComp, Ownable {
     constructor() ERC20("Ching-Gu-Vi", "CGV") ERC20Permit("Ching-Gu-Vi") {}
     
     /**
-     * TODO: mint process
+     * TODO:
+     *
+     * - Ownable.
      */
     function mint(address account, uint256 amount) public /* onlyOwner */ {
         _mint(account, amount);

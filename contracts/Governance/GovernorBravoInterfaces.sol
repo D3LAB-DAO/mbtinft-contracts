@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 /**
  * Implementation for Solidity v0.8.
  *
- * References
+ * References:
  *
  * - https://github.com/compound-finance/compound-protocol/blob/master/contracts/Governance/GovernorBravoInterfaces.sol
  */
@@ -100,7 +100,6 @@ contract GovernorBravoDelegateStorageV1 is GovernorBravoDelegatorStorage {
 
     /// @notice The latest proposal for each proposer
     mapping (address => uint) public latestProposalIds;
-
 
     struct Proposal {
         /// @notice Unique id for looking up a proposal

@@ -7,11 +7,11 @@ import "./GovernorBravoInterfaces.sol";
 /**
  * Implementation for Solidity v0.8.
  * 
- * TODO
+ * TODO:
  * 
  * - Check total cap: 100,000.
  * 
- * References
+ * References:
  *
  * - https://github.com/compound-finance/compound-protocol/blob/master/contracts/Governance/GovernorBravoDelegate.sol
  */
