@@ -26,5 +26,5 @@ interface MbtiNftInterface {
         uint256 deadline,
         uint8 v, bytes32 r, bytes32 s
     ) external;
-    // function check() external;
+    // function download() external;
 }

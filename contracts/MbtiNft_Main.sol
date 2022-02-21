@@ -44,6 +44,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     Heap.Data public queue; // request queue
     mapping(int128 => bytes32) public keys; // request (id => key)
     mapping(int128 => address) public accounts; // request (id => account)
+    mapping(bytes32 => bool) public pending; // whether key is in the queue or not.
 
     /* Storage: Inference */
     // get counter (nonce) by `nonces[account][tokenId]`.
@@ -58,7 +59,9 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     /* Events */
     // TBA
 
-    constructor() {
+    constructor(address cgv_, address chinggu_) {
+        cgv = CGV(cgv_);
+        chinggu = ChingGu(chinggu_);
         queue.init(); // priority queue
     }
 
@@ -120,10 +123,14 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
      */
     function allPriorities() public view returns(int128[] memory ps, int128 maxP, int128 minP) {
         Heap.Node[] memory ns = queue.dump();
-        ps = new int128[](ns.length);
-        for (uint256 i = 0; i < ns.length; i++) {
+        ps = new int128[](ns.length - 1);
+        if (ns.length > 1) {
+            maxP = ns[1].priority;
+            minP = ns[1].priority;
+        }
+        for (uint256 i = 1; i < ns.length; i++) {
             int128 p = ns[i].priority;
-            ps[i] = p;
+            ps[i - 1] = p;
             if (maxP < p) {maxP = p;}
             else if (minP > p) {minP = p;}
         }
@@ -205,6 +212,9 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         address account,
         uint256 maxLength, uint256 inferencePrice
     ) internal returns(int128 id) {
+        /* condition */
+        require(!pending[key], 'MBTINFT: INVALID_KEY');
+
         /* lock token */
         uint256 amount = maxLength * inferencePrice;
         IERC20(cgv).transferFrom(account, address(this), amount);
@@ -212,6 +222,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
 
         /* push queue */
         id = _push(inferencePrice.toInt256().toInt128(), key, account);
+        pending[key] = true;
     }
 
     /**
@@ -221,9 +232,10 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         /* condition */
         address account = accounts[id];
         require(_msgSender() == account, 'MBTINFT: INVALID_SENDER');
-        
+
         /* get key */
         bytes32 key = keys[id];
+        require(pending[key], 'MBTINFT: INVALID_KEY');
 
         /* unlock token */
         uint256 amount = lockedTokens[key];
@@ -234,25 +246,25 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
 
         /* remove element from queue */
         _popById(id);
+        pending[key] = false;
     }
 
     /**
      * @notice Server replies at the highest priority request.
      */
     function inference() public onlyOwner {
-        /* get key */
-        /* remove element from queue */
         bytes32 key;
-        (, , key, ) = _pop();
+        (, , key, ) = _pop(); // remove element from queue.
+        require(pending[key], 'MBTINFT: INVALID_KEY'); // check condition.
+        pending[key] = false;
 
-        /* inference */
         _inference(key);
     }
 
     /**
      * TODO:
      *
-     * - Optimization: queue activities.
+     * - Optimization: queue activities, pending array.
      */
     function inferenceWithPermit(
         address account, uint256 tokenId, uint256 nonce,
@@ -263,14 +275,14 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         /* upload */
         int128 id = this.permit(account, tokenId, nonce, maxLength, inferencePrice, deadline, v, r, s);
         
-        /* get key */
-        /* remove element from queue */
         int128 maxId;
         bytes32 key;
-        (maxId, , key, ) = _pop();
-        
+        (maxId, , key, ) = _pop(); // remove element from queue.
+
         /* condition */
         require(maxId == id, 'MBTINFT: INVALID_PRIORITY');
+        require(pending[key], 'MBTINFT: INVALID_KEY'); // check condition.
+        pending[key] = false;
 
         /* inference */
         _inference(key);
@@ -285,4 +297,6 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         /* inferencer */
         // TODO
     }
+
+    // function download() public {};
 }
