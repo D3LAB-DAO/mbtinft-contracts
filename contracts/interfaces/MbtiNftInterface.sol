@@ -11,10 +11,6 @@ interface MbtiNftInterface {
     ) external returns(int128 id);
 
     function upload(
-        bytes32 key,
-        uint256 maxLength, uint256 inferencePrice
-    ) external returns(int128 id);
-    function upload(
         address account, uint256 tokenId,
         uint256 maxLength, uint256 inferencePrice
     ) external returns(int128 id);

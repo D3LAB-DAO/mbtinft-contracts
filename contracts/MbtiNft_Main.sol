@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/MbtiNftInterface.sol";
 import "./PriorityQueue/Heap.sol";
-import "./CGV_ERC20.sol";
-import "./ChingGu_ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -36,8 +34,8 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     using SafeCast for int256;
 
     /* Storage: Tokens */
-    CGV public cgv;
-    ChingGu public chinggu;
+    IERC20 public cgv;
+    IERC721 public chinggu;
 
     /* Storage: Priority Queue */
     using Heap for Heap.Data;
@@ -60,8 +58,8 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     // TBA
 
     constructor(address cgv_, address chinggu_) {
-        cgv = CGV(cgv_);
-        chinggu = ChingGu(chinggu_);
+        cgv = IERC20(cgv_);
+        chinggu = IERC721(chinggu_);
         queue.init(); // priority queue
     }
 
@@ -88,28 +86,29 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         delete accounts[id];
         return (n.id, n.priority, key, account);
     }
-    // function getMax() public view returns(int128, int128) {
-    //     Heap.Node memory n = queue.getMax();
-    //     return (n.id, n.priority);
-    // }
-    // function getById(int128 id) public view returns(int128, int128) {
-    //     Heap.Node memory n = queue.getById(id);
-    //     return (n.id, n.priority);
-    // }
-    // function getByIndex(uint i) public view returns(int128, int128) { // same as getByRank
-    //     Heap.Node memory n =  queue.getByIndex(i);
-    //     return (n.id, n.priority);
-    // }
-    // function size() public view returns(uint){
-    //     return queue.size();
-    // }
-    // function idCount() public view returns(int128){
-    //     return queue.idCount;
-    // }
-    // function indices(int128 id) public view returns(uint){ // same as ranks
-    //     return queue.indices[id];
-    // }
+    function getMax() public view returns(int128, int128) {
+        Heap.Node memory n = queue.getMax();
+        return (n.id, n.priority);
+    }
+    function getById(int128 id) public view returns(int128, int128) {
+        Heap.Node memory n = queue.getById(id);
+        return (n.id, n.priority);
+    }
+    function getByIndex(uint i) public view returns(int128, int128) { // same as getByRank
+        Heap.Node memory n =  queue.getByIndex(i);
+        return (n.id, n.priority);
+    }
+    function size() public view returns(uint){
+        return queue.size();
+    }
+    function idCount() public view returns(int128){
+        return queue.idCount;
+    }
+    function indices(int128 id) public view returns(uint){ // same as ranks
+        return queue.indices[id];
+    }
 
+    /* Functions: Inference Speed */
     /**
      * @notice Check all priorities to calculate proper `inferencePrice`.
      *
@@ -134,6 +133,28 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
             if (maxP < p) {maxP = p;}
             else if (minP > p) {minP = p;}
         }
+    }
+    function fastest() public view returns(int128 p) {
+        (, p, ) = allPriorities();
+        p++;
+    }
+    function faster() public view returns(int128 p) {
+        (, p, ) = allPriorities();
+        p--;
+    }
+    function average() public view returns(int128 p) {
+        int128 maxP;
+        int128 minP;
+        (, maxP, minP) = allPriorities();
+        p = (maxP + minP) / 2;
+    }
+    function slower() public view returns(int128 p) {
+        (, , p) = allPriorities();
+        p++;
+    }
+    function slowest() public view returns(int128 p) {
+        (, , p) = allPriorities();
+        p--;
     }
 
     /* Functions: Inference */
@@ -178,14 +199,20 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     }
 
     /**
-     * @notice Do not use `upload` with non-exist key.
+     * @notice WARNING: Test purpose only.
+     *
+     * Do not use `upload` with non-exist key.
      * If so, you can miss (freeze) tokens.
      */
     function upload(
         bytes32 key,
+        uint256 tokenId,
         uint256 maxLength, uint256 inferencePrice
     ) public returns(int128 id) {
         id = _upload(key, _msgSender(), maxLength, inferencePrice);
+        
+        // Forcely update nonce
+        nonces[_msgSender()][tokenId]++;
     }
 
     /**
@@ -217,7 +244,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
 
         /* lock token */
         uint256 amount = maxLength * inferencePrice;
-        IERC20(cgv).transferFrom(account, address(this), amount);
+        cgv.transferFrom(account, address(this), amount);
         lockedTokens[key] += amount;
 
         /* push queue */
@@ -241,7 +268,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         uint256 amount = lockedTokens[key];
         if (amount > 0) {
             lockedTokens[key] = 0;
-            IERC20(cgv).transfer(account, amount);
+            cgv.transfer(account, amount);
         }
 
         /* remove element from queue */
@@ -299,4 +326,6 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     }
 
     // function download() public {};
+
+    /* Functions: Etc */
 }
