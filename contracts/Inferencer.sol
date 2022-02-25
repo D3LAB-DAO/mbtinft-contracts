@@ -22,6 +22,6 @@ contract Inferencer is InferencerInterface, Ownable {
     function inference(bytes32 key, address account, uint256 inftId) public /* onlyOwner */ {
         ITalk(address(talk)).mint(account, inftId, key);
         
-        // inference(key);
+        inference(key);
     }
 }
