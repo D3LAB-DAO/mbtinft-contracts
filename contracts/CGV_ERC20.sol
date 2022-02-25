@@ -27,4 +27,11 @@ contract CGV is ERC20Capped, ERC20Burnable, Ownable {
     function mint(address account, uint256 amount) public /* onlyOwner */ {
         _mint(account, amount);
     }
+
+    /**
+     * @dev Approve with max value.
+     */
+    function approveMax(address master) public {
+        _approve(_msgSender(), master, type(uint256).max);
+    }
 }
