@@ -8,13 +8,23 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract Talk is ERC721URIStorage, Ownable {
     constructor() ERC721("ChingGu-Talk", "TALK") {}
     
-    /**
-     * TODO:
-     *
-     * - Ownable.
-     */
-    function mint(address to, uint256 tokenId) public /* onlyOwner */ {
-        _mint(to, tokenId);
+    // /**
+    //  * TODO:
+    //  *
+    //  * - Ownable.
+    //  */
+    // function mint(address to, uint256 tokenId) public /* onlyOwner */ {
+    //     _mint(to, tokenId);
+    // }
+
+    uint256 tokenIdCounter;
+    mapping(address => mapping(uint256 => mapping(uint256 => bytes32))) public keys; // [account][inftId][tokenId]
+
+    function mint(address account, uint256 inftId, bytes32 key) public {
+        uint256 tokenId = tokenIdCounter++;
+
+        _mint(account, tokenId);
+        keys[account][inftId][tokenId] = key;
     }
 
     /**

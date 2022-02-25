@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/MbtiNftInterface.sol";
 import "./PriorityQueue/Heap.sol";
+import "./interfaces/InferencerInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -36,12 +37,14 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     /* Storage: Tokens */
     IERC20 public cgv;
     IERC721 public chinggu;
+    InferencerInterface public inferencer;
 
     /* Storage: Priority Queue */
     using Heap for Heap.Data;
     Heap.Data public queue; // request queue
     mapping(int128 => bytes32) public keys; // request (id => key)
     mapping(int128 => address) public accounts; // request (id => account)
+    mapping(int128 => uint256) public tokenIds; // request (id => tokenIn)
     mapping(bytes32 => bool) public pending; // whether key is in the queue or not.
 
     /* Storage: Inference */
@@ -57,35 +60,44 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     /* Events */
     // TBA
 
-    constructor(address cgv_, address chinggu_) {
+    constructor(address cgv_, address chinggu_, address inferencer_) {
         cgv = IERC20(cgv_);
         chinggu = IERC721(chinggu_);
+        inferencer = InferencerInterface(inferencer_);
+
         queue.init(); // priority queue
     }
 
     /* Functions: Priority Queue */
-    function _push(int128 priority, bytes32 key, address account) internal returns(int128) {
+    function _push(int128 priority, bytes32 key, address account, uint256 tokenId) internal returns(int128) {
         Heap.Node memory n = queue.insert(priority);
         keys[n.id] = key;
         accounts[n.id] = account;
+        tokenIds[n.id] = tokenId;
         return n.id;
     }
-    function _pop() internal returns(int128, int128, bytes32, address) {
+    function _pop() internal returns(int128, int128, bytes32, address, uint256) {
         Heap.Node memory n = queue.extractMax();
         bytes32 key = keys[n.id];
         address account = accounts[n.id];
+        uint256 tokenId = tokenIds[n.id];
         delete keys[n.id];
         delete accounts[n.id];
-        return (n.id, n.priority, key, account);
+        delete tokenIds[n.id];
+        return (n.id, n.priority, key, account, tokenId);
     }
-    function _popById(int128 id) internal returns(int128, int128, bytes32, address) {
+    function _popById(int128 id) internal returns(int128, int128, bytes32, address, uint256) {
         Heap.Node memory n = queue.extractById(id);
         bytes32 key = keys[id];
         address account = accounts[id];
+        uint256 tokenId = tokenIds[n.id];
         delete keys[id];
         delete accounts[id];
-        return (n.id, n.priority, key, account);
+        delete tokenIds[n.id];
+        return (n.id, n.priority, key, account, tokenId);
     }
+
+    // Test Purpose
     function getMax() public view returns(int128, int128) {
         Heap.Node memory n = queue.getMax();
         return (n.id, n.priority);
@@ -195,7 +207,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         require(recoveredAddress != address(0) && recoveredAddress == account, 'MBTINFT: INVALID_SIGNATURE');
         
         /* Logic what you want */
-        id = _upload(key, account, maxLength, inferencePrice);
+        id = _upload(key, account, tokenId, maxLength, inferencePrice);
     }
 
     /**
@@ -209,7 +221,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         uint256 tokenId,
         uint256 maxLength, uint256 inferencePrice
     ) public returns(int128 id) {
-        id = _upload(key, _msgSender(), maxLength, inferencePrice);
+        id = _upload(key, _msgSender(), tokenId, maxLength, inferencePrice);
         
         // Forcely update nonce
         nonces[_msgSender()][tokenId]++;
@@ -231,12 +243,12 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         bytes32 key = keccak256(abi.encode(account, tokenId, nonce));
 
         /* upload */
-        id = _upload(key, account, maxLength, inferencePrice);
+        id = _upload(key, account, tokenId, maxLength, inferencePrice);
     }
 
     function _upload(
         bytes32 key,
-        address account,
+        address account, uint256 tokenId,
         uint256 maxLength, uint256 inferencePrice
     ) internal returns(int128 id) {
         /* condition */
@@ -248,7 +260,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         lockedTokens[key] += amount;
 
         /* push queue */
-        id = _push(inferencePrice.toInt256().toInt128(), key, account);
+        id = _push(inferencePrice.toInt256().toInt128(), key, account, tokenId);
         pending[key] = true;
     }
 
@@ -281,11 +293,13 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
      */
     function inference() public onlyOwner {
         bytes32 key;
-        (, , key, ) = _pop(); // remove element from queue.
+        address account;
+        uint256 tokenId;
+        (, , key, account, tokenId) = _pop(); // remove element from queue.
         require(pending[key], 'MBTINFT: INVALID_KEY'); // check condition.
         pending[key] = false;
 
-        _inference(key);
+        _inference(key, account, tokenId);
     }
 
     /**
@@ -304,7 +318,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         
         int128 maxId;
         bytes32 key;
-        (maxId, , key, ) = _pop(); // remove element from queue.
+        (maxId, , key, ,) = _pop(); // remove element from queue.
 
         /* condition */
         require(maxId == id, 'MBTINFT: INVALID_PRIORITY');
@@ -312,17 +326,24 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         pending[key] = false;
 
         /* inference */
-        _inference(key);
+        _inference(key, account, tokenId);
     }
 
-    function _inference(bytes32 key) internal {
+    function _inference(bytes32 key, address account, uint256 tokenId) internal {
         /* burn token */
         uint256 amount = lockedTokens[key];
         lockedTokens[key] = 0;
         IERC20Burnable(address(cgv)).burn(amount);
 
         /* inferencer */
-        // TODO
+        inferencer.inference(key, account, tokenId);
+    }
+
+    /**
+     * @notice WARNING: Test purpose only.
+     */
+    function inference(bytes32 key, address account, uint256 tokenId) public {
+        _inference(key, account, tokenId);
     }
 
     // function download() public {};
