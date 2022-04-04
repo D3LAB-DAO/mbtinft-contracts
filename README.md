@@ -7,7 +7,7 @@ Open sources.
 
 `ERC20`
 
-# Ching-Gu (Friend)
+# ChingGu (Friend)
 
 `ERC721`
 

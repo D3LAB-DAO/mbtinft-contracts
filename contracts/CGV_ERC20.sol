@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract CGV is ERC20Capped, ERC20Burnable, Ownable {
     constructor()
         ERC20Capped(1000000000 * 10e18)
-        ERC20("Ching-Gu-Vi", "CGV")
+        ERC20("ChingGu-Vi", "CGV")
     {}
     
     /**
