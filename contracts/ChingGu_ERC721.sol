@@ -36,6 +36,7 @@ contract ChingGu is ERC721URIStorage, Ownable {
 
     /* Functions: Metadata */
 
+    // TODO: mint price
     function mint(uint256 job) public {
         uint256 tokenId = tokenIdCounter++;
         address sender = _msgSender();
@@ -52,17 +53,21 @@ contract ChingGu is ERC721URIStorage, Ownable {
 
         if (job == 16) { // Neutral
             p.sp = rarity * SP_PER_RARITY * 4;
+            p.mbti.energy = 50;
+            p.mbti.information = 50;
+            p.mbti.decision = 50;
+            p.mbti.relate = 50;
         }
         else {
             bool[4] memory b = _binary(job);
-            if (b[0]) { p.mbti.energy = 100 - rarity * SP_PER_RARITY; }
-            else { p.mbti.energy = rarity * SP_PER_RARITY; }
-            if (b[1]) { p.mbti.information = 100 - rarity * SP_PER_RARITY; }
-            else { p.mbti.information = rarity * SP_PER_RARITY; }
-            if (b[2]) { p.mbti.decision = 100 - rarity * SP_PER_RARITY; }
-            else { p.mbti.decision = rarity * SP_PER_RARITY; }
-            if (b[3]) { p.mbti.relate = 100 - rarity * SP_PER_RARITY; }
-            else { p.mbti.relate = rarity * SP_PER_RARITY; }
+            if (b[0]) { p.mbti.energy = 50 - rarity * SP_PER_RARITY; }
+            else { p.mbti.energy = 50 + rarity * SP_PER_RARITY; }
+            if (b[1]) { p.mbti.information = 50 - rarity * SP_PER_RARITY; }
+            else { p.mbti.information = 50 + rarity * SP_PER_RARITY; }
+            if (b[2]) { p.mbti.decision = 50 - rarity * SP_PER_RARITY; }
+            else { p.mbti.decision = 50 + rarity * SP_PER_RARITY; }
+            if (b[3]) { p.mbti.relate = 50 - rarity * SP_PER_RARITY; }
+            else { p.mbti.relate = 50 + rarity * SP_PER_RARITY; }
         }
     }
 
@@ -77,22 +82,22 @@ contract ChingGu is ERC721URIStorage, Ownable {
 
     // mbti
     /*
-        0:  0, 0, 0, 0: ISFP
-        1:  1, 0, 0, 0: ESFP
-        2:  0, 1, 0, 0: INFP
-        3:  1, 1, 0, 0: ENFP
-        4:  0, 0, 1, 0: ISTP
-        5:  1, 0, 1, 0: ESTP
-        6:  0, 1, 1, 0: INTP
-        7:  1, 1, 1, 0: ENTP
-        8:  0, 0, 0, 1: ISFJ
-        9:  1, 0, 0, 1: ESFJ
-        10: 0, 1, 0, 1: INFJ
-        11: 1, 1, 0, 1: ENFJ
-        12: 0, 0, 1, 1: ISTJ
-        13: 1, 0, 1, 1: ESTJ
-        14: 0, 1, 1, 1: INTJ
-        15: 1, 1, 1, 1: ENTJ
+        0: ESTJ
+        1: ISTJ
+        2: ENTJ
+        3: INTJ
+        4: ESFJ
+        5: ISFJ
+        6: ENFJ
+        7: INFJ
+        8: ESTP
+        9: ISTP
+        10: ENTP
+        11: INTP
+        12: ESFP
+        13: ISFP
+        14: ENFP
+        15: INFP
     */
     function _binary(uint256 x) internal pure returns(bool[4] memory y) {
         require(x < 16, "ChingGu: EXCEED_BOUNDARY.");
@@ -129,18 +134,31 @@ contract ChingGu is ERC721URIStorage, Ownable {
         uint64 decision, // T <=> F, save 'T'
         uint64 relate // J <=> P, save 'J'
     ) public pure returns(string memory) {
+        if (
+            energy == 50 &&
+            information == 50 &&
+            decision == 50 &&
+            relate == 50
+        ) {
+            return "neutral";
+        }
+        
         bytes[4] memory mbti;
-        if (energy > 50) { mbti[0] = 'I'; }
+        if (energy < 50) { mbti[0] = 'I'; }
         else { mbti[0] = 'E'; }
-        if (information > 50) { mbti[1] = 'N'; }
+        if (information < 50) { mbti[1] = 'N'; }
         else { mbti[1] = 'S'; }
-        if (decision > 50) { mbti[2] = 'F'; }
+        if (decision < 50) { mbti[2] = 'F'; }
         else { mbti[2] = 'T'; }
-        if (relate > 50) { mbti[3] = 'P'; }
+        if (relate < 50) { mbti[3] = 'P'; }
         else { mbti[3] = 'J'; }
         return string(abi.encodePacked(mbti[0], mbti[1], mbti[2], mbti[3]));
     }
     function getMBTI(uint256 job) public pure returns(string memory) {
+        if (job == 16) { return "neutral"; }
+
+        require(job < 16, "ChingGu: EXCEED_BOUNDARY.");
+
         bytes[4] memory mbti;
         bool[4] memory b = _binary(job);
         if (b[0]) { mbti[0] = 'I'; }
@@ -152,6 +170,55 @@ contract ChingGu is ERC721URIStorage, Ownable {
         if (b[3]) { mbti[3] = 'P'; }
         else { mbti[3] = 'J'; }
         return string(abi.encodePacked(mbti[0], mbti[1], mbti[2], mbti[3]));
+    }
+
+    // TODO
+    function addAmount(address account, uint256 tokenId, uint256 amount) public {
+        Properties storage p = _properties[account][tokenId];
+        p.amount += amount;
+    }
+
+    // +1
+    function addLove(address account, uint256 tokenId, uint256 love) public {
+        Properties storage p = _properties[account][tokenId];
+        p.love += love;
+    }
+
+    // TODO
+    function addPopularity(address account, uint256 tokenId, uint256 popularity) public {
+        Properties storage p = _properties[account][tokenId];
+        p.popularity += popularity;
+    }
+
+    // TODO
+    function addSp(address account, uint256 tokenId, uint256 sp) public {
+        Properties storage p = _properties[account][tokenId];
+        p.sp += sp;
+    }
+
+    // E <=> I
+    // S <=> N
+    // T <=> F
+    // J <=> P
+    // TODO
+    function teach(
+        address account, uint256 tokenId,
+        uint64 E, uint64 I, uint64 S, uint64 N, uint64 T, uint64 F, uint64 J, uint64 P
+    ) public /* onlyOwner */ {
+        Properties storage p = _properties[account][tokenId];
+
+        require(p.sp >= (E + I + S + N + T + F + J + P), "ChingGu: EXCEED_AMOUNT");
+
+        p.sp -= (E + I + S + N + T + F + J + P);
+
+        p.mbti.energy += E;
+        p.mbti.energy -= I;
+        p.mbti.information += S;
+        p.mbti.information -= N;
+        p.mbti.decision += T;
+        p.mbti.decision -= F; 
+        p.mbti.relate += J;
+        p.mbti.relate -= P;
     }
 
     // /**

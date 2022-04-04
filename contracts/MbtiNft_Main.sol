@@ -14,6 +14,15 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 interface IERC20Burnable {
     function burn(uint256 amount) external;
+    function burnFrom(address account, uint256 amount) external;
+}
+
+interface IChingGu {
+    function addLove(address account, uint256 tokenId, uint256 love) external;
+    function teach(
+        address account, uint256 tokenId,
+        uint64 E, uint64 I, uint64 S, uint64 N, uint64 T, uint64 F, uint64 J, uint64 P
+    ) external;
 }
 
 /**
@@ -66,6 +75,18 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         inferencer = InferencerInterface(inferencer_);
 
         queue.init(); // priority queue
+    }
+
+    function setCgv(address cgv_) public onlyOwner {
+        cgv = IERC20(cgv_);
+    }
+
+    function setChinggu(address chinggu_) public onlyOwner {
+        chinggu = IERC721(chinggu_);
+    }
+
+    function setInferencer(address inferencer_) public onlyOwner {
+        inferencer = InferencerInterface(inferencer_);
     }
 
     /* Functions: Priority Queue */
@@ -291,7 +312,7 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
     /**
      * @notice Server replies at the highest priority request.
      */
-    function inference() public onlyOwner {
+    function inference() public /* onlyOwner */ {
         bytes32 key;
         address account;
         uint256 tokenId;
@@ -336,17 +357,34 @@ contract MbtiNft is MbtiNftInterface, Context, Ownable {
         IERC20Burnable(address(cgv)).burn(amount);
 
         /* inferencer */
-        inferencer.inference(key, account, tokenId);
-    }
+        inferencer.inferenceCall(key, account, tokenId);
 
-    /**
-     * @notice WARNING: Test purpose only.
-     */
-    function inference(bytes32 key, address account, uint256 tokenId) public {
-        _inference(key, account, tokenId);
+        /* update love */
+        IChingGu(address(chinggu)).addLove(account, tokenId, 1);
     }
 
     // function download() public {};
+
+    /* Functions: Skills */
+
+    /**
+     * @notice Current ratio is (10 cgv = 1 sp)
+     */
+    function teach(
+        address account, uint256 tokenId,
+        uint256 amount,
+        uint64 E, uint64 I, uint64 S, uint64 N, uint64 T, uint64 F, uint64 J, uint64 P
+    ) public {
+        IERC20Burnable(address(cgv)).burnFrom(_msgSender(), amount);
+
+        uint64 total = E + I + S + N + T + F + J + P;
+        require(amount > (total * 10), 'MBTINFT: INVALID_AMOUNT');
+
+        IChingGu(address(chinggu)).teach(
+            account, tokenId,
+            E, I, S, N, T, F, J, P
+        );
+    }
 
     /* Functions: Etc */
 }
